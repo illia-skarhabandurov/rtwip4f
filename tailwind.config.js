@@ -2,7 +2,7 @@
 export default {
   content: [
     "./index.html",
-    "./**/*.{js,ts,jsx,tsx}",
+    "./src/**/*.{js,ts,jsx,tsx}",
   ],
   theme: {
     extend: {
@@ -51,7 +51,7 @@ export default {
         },
         sidebar: {
           DEFAULT: "var(--sidebar)",
-          foreground: "var(--sidebar-foreground)",
+          foreground: "var(--sidebar-primary)",
           primary: "var(--sidebar-primary)",
           "primary-foreground": "var(--sidebar-primary-foreground)",
           accent: "var(--sidebar-accent)",
