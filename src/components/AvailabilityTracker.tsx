@@ -45,40 +45,51 @@ export function AvailabilityTracker() {
   useEffect(() => {
     const el = hScrollRef.current;
     if (!el) return;
-
+  
     let isDown = false;
     let startX = 0;
+    let startY = 0;
     let scrollLeft = 0;
-
+    let scrollTop = 0;
+  
     const onDown = (e: MouseEvent) => {
       if (e.button !== 0) return;
       isDown = true;
       el.classList.add("cursor-grabbing");
       startX = e.pageX - el.offsetLeft;
+      startY = e.pageY - el.offsetTop;
       scrollLeft = el.scrollLeft;
+      scrollTop = el.scrollTop;
     };
+  
     const onMove = (e: MouseEvent) => {
       if (!isDown) return;
       const x = e.pageX - el.offsetLeft;
-      const walk = (x - startX) * 1;
-      el.scrollLeft = scrollLeft - walk;
+      const y = e.pageY - el.offsetTop;
+      const dx = x - startX;
+      const dy = y - startY;
+      el.scrollLeft = scrollLeft - dx;
+      el.scrollTop = scrollTop - dy;
     };
+  
     const onUp = () => {
       isDown = false;
       el.classList.remove("cursor-grabbing");
     };
+  
     const onWheel = (e: WheelEvent) => {
-      if (e.shiftKey) {
+      // Default handles 2D trackpads. When Shift is held on a mouse, map vertical wheel to horizontal.
+      if (e.shiftKey && Math.abs(e.deltaX) < 1) {
         e.preventDefault();
-        el.scrollBy({ left: e.deltaY, behavior: "auto" });
+        el.scrollBy({ left: e.deltaY, top: 0, behavior: "auto" });
       }
     };
-
+  
     el.addEventListener("mousedown", onDown);
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
     el.addEventListener("wheel", onWheel, { passive: false });
-
+  
     return () => {
       el.removeEventListener("mousedown", onDown);
       window.removeEventListener("mousemove", onMove);
@@ -89,43 +100,57 @@ export function AvailabilityTracker() {
 
   // ---------- Zoom helpers ----------
   const getPersonRowHeight = () => {
+    if (zoomLevel <= 0.25) return "h-6";  // ultra-compact
+    if (zoomLevel <= 0.5)  return "h-7";  // extra-compact
     if (zoomLevel <= 0.75) return "h-8";
-    if (zoomLevel <= 1) return "h-10";
+    if (zoomLevel <= 1)    return "h-10";
     if (zoomLevel <= 1.25) return "h-12";
-    if (zoomLevel <= 1.5) return "h-14";
+    if (zoomLevel <= 1.5)  return "h-14";
     return "h-16";
   };
+  
   const getAvatarSize = () => {
+    if (zoomLevel <= 0.25) return "h-4 w-4";
+    if (zoomLevel <= 0.5)  return "h-5 w-5";
     if (zoomLevel <= 0.75) return "h-5 w-5";
-    if (zoomLevel <= 1) return "h-6 w-6";
+    if (zoomLevel <= 1)    return "h-6 w-6";
     if (zoomLevel <= 1.25) return "h-7 w-7";
-    if (zoomLevel <= 1.5) return "h-8 w-8";
+    if (zoomLevel <= 1.5)  return "h-8 w-8";
     return "h-9 w-9";
   };
+  
   const getTextSize = () => {
-    if (zoomLevel <= 0.75) return "text-[11px]";
+    if (zoomLevel <= 0.25) return "text-[9px]";
+    if (zoomLevel <= 0.5)  return "text-[10px]";
     if (zoomLevel <= 1.25) return "text-xs";
-    if (zoomLevel <= 1.5) return "text-sm";
+    if (zoomLevel <= 1.5)  return "text-sm";
     return "text-base";
   };
+  
   const getBarTextSize = () => {
-    if (zoomLevel <= 0.75) return "text-[10px]";
+    if (zoomLevel <= 0.25) return "text-[9px]";
+    if (zoomLevel <= 0.5)  return "text-[10px]";
     if (zoomLevel <= 1.25) return "text-xs";
     return "text-sm";
   };
+  
   const getWeekWidth = () => {
+    if (zoomLevel <= 0.25) return "w-8";   // very narrow
+    if (zoomLevel <= 0.5)  return "w-10";
     if (zoomLevel <= 0.75) return "w-12";
-    if (zoomLevel <= 1) return "w-16";
+    if (zoomLevel <= 1)    return "w-16";
     if (zoomLevel <= 1.25) return "w-20";
-    if (zoomLevel <= 1.5) return "w-24";
+    if (zoomLevel <= 1.5)  return "w-24";
     return "w-28";
   };
+  
+  // flags (keep your existing ones)
   const rowHeightClass = getPersonRowHeight();
   const isCompact = zoomLevel <= 0.75;
   const isTight = zoomLevel <= 1;
 
-  const handleZoomIn = () => setZoomLevel((z) => Math.min(z + 0.25, 2));
-  const handleZoomOut = () => setZoomLevel((z) => Math.max(z - 0.25, 0.5));
+  const handleZoomIn = () => setZoomLevel(z => Math.min(z + 0.25, 2));
+  const handleZoomOut = () => setZoomLevel(z => Math.max(z - 0.25, 0.25));
   const handleResetZoom = () => setZoomLevel(1);
 
   // Keyboard zoom shortcuts
@@ -402,171 +427,131 @@ export function AvailabilityTracker() {
 
       {/* MAIN: outer H scroller keeps header/body aligned */}
       <div className="flex-1 bg-white rounded-lg border border-border overflow-hidden relative">
-        {/* Horizontal scroller */}
+  <div
+    ref={hScrollRef}
+    className="w-full h-[calc(100vh-280px)] overflow-hidden cursor-grab select-none"
+  >
+    {/* Make content wider than viewport to enable horizontal scrolling */}
+    <div className="min-w-max">
+      {/* HEADER ROW */}
+      <div className="relative flex border-b border-border z-20">
+        {/* Top-left corner cell: sticky in both directions */}
         <div
-          ref={hScrollRef}
-          className="w-full overflow-x-auto overflow-y-hidden cursor-grab select-none"
+          className="w-[150px] flex-none p-2 bg-gray-50 border-r border-border
+                     sticky top-0 left-0 z-40"
         >
-          <div className="min-w-max">
-            {/* HEADER ROW (sticky top) */}
-            <div className="flex border-b border-border sticky top-0 bg-white z-20">
-              {/* Left fixed header cell (sticky left) */}
-              <div
-                className="w-[150px] flex-none p-2 bg-gray-50 border-r border-border
-                           sticky left-0 z-30"
-              >
-                <span className="font-medium text-xs sm:text-sm">
-                  People ({filteredPeople.length})
-                </span>
-              </div>
+          <span className="font-medium text-xs sm:text-sm">
+            People ({filteredPeople.length})
+          </span>
+        </div>
 
-              {/* Right: months/weeks rail + focus line */}
-              <div className="relative flex-1">
-                <div className="flex min-w-max">
-                  {months.map((month) => (
-                    <div key={month.value} className="border-r border-border bg-gray-50">
-                      <div className="px-1 sm:px-2 py-1 text-center border-b border-border">
-                        <span className="text-xs font-medium">{month.label}</span>
-                      </div>
-                      <div className="flex">
-                        {month.weeks.map((week, i) => (
-                          <div
-                            key={`${month.value}-${i}`}
-                            className={`${getWeekWidth()} px-1 py-1 text-center border-r border-border last:border-r-0`}
-                          >
-                            <span className="text-xs text-muted-foreground">{week.label}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
+        {/* Right header rail: sticky at top only */}
+        <div className="relative flex-1 sticky top-0 z-30 bg-white">
+          {/* Red focus line at 18 Dec 2025 */}
+          <div
+            className="absolute top-0 bottom-0 w-0.5 bg-red-600/80 pointer-events-none z-10"
+            style={{ left: `${focusOffset}%` }}
+          />
+          <div className="flex min-w-max bg-gray-50">
+            {months.map((month) => (
+              <div key={month.value} className="border-r border-border">
+                <div className="px-1 sm:px-2 py-1 text-center border-b border-border bg-gray-50">
+                  <span className="text-xs font-medium">{month.label}</span>
                 </div>
-              </div>
-            </div>
-
-            {/* BODY: sticky left column + synced right rails */}
-            <div className="relative flex">
-              {/* LEFT sticky wrapper (child of H scroller) */}
-              <div className="sticky left-0 z-30 bg-white border-r border-border w-[150px]">
-                <div
-                  ref={leftBodyRef}
-                  className="overflow-hidden"
-                  style={{ height: "calc(100vh - 280px)" }}
-                >
-                  {filteredPeople.map((person: Person, index: number) => (
+                <div className="flex bg-white">
+                  {month.weeks.map((week, i) => (
                     <div
-                      key={person.id}
-                      className={`flex items-center ${rowHeightClass} border-b border-border px-2 ${
-                        index % 2 === 0 ? "bg-white" : "bg-gray-50"
-                      }`}
-                      title={`${person.name} — ${person.role}`}
+                      key={`${month.value}-${i}`}
+                      className={`${getWeekWidth()} px-1 py-1 text-center border-r border-border last:border-r-0`}
                     >
-                      <Avatar className={`${getAvatarSize()} flex-shrink-0`}>
-                        <AvatarImage src={person.avatar} alt={person.name} />
-                        <AvatarFallback className="text-xs">
-                          {person.name.split(" ").map((n) => n[0]).join("")}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className={`flex-1 min-w-0 ${isTight ? "ml-1" : "ml-2"}`}>
-                        <p className={`font-medium ${getTextSize()} truncate`}>{person.name}</p>
-                        {!isCompact && (
-                          <p className={`${getTextSize()} text-muted-foreground truncate`}>
-                            {person.role}
-                          </p>
-                        )}
-                      </div>
+                      <span className="text-xs text-muted-foreground">{week.label}</span>
                     </div>
                   ))}
                 </div>
               </div>
-
-              {/* RIGHT rails (independent vertical scroller) */}
-              <div className="flex-1">
-                <div
-                  ref={rightBodyRef}
-                  className="overflow-y-auto"
-                  style={{ height: "calc(100vh - 280px)" }}
-                >
-                  <div className="relative">
-                    {/* Red line at 18 Dec 2025 */}
-                    <div
-                      className="absolute top-0 bottom-0 w-0.5 bg-red-600/80 pointer-events-none z-10"
-                      style={{ left: `${focusOffset}%` }}
-                    />
-                    {filteredPeople.map((person: Person, index: number) => {
-                      const personEntries = mockTimelineEntries.filter(
-                        (entry: TimelineEntry) => entry.personId === person.id
-                      );
-                      return (
-                        <div
-                          key={person.id}
-                          className={`${rowHeightClass} relative border-b border-border ${
-                            index % 2 === 0 ? "bg-white" : "bg-gray-50"
-                          }`}
-                        >
-                          <div className="absolute inset-0">
-                            {personEntries.map((entry: TimelineEntry, entryIndex: number) => {
-                              const position = calculateBarPosition(entry.startWeek, entry.endWeek);
-                              const colorClasses = getProjectColor(
-                                entry.projectName,
-                                person.department
-                              );
-                              const startFmt = fmtBarDate(entry.startWeek);
-                              const endFmt = fmtBarDate(entry.endWeek);
-                              const barTextSize = getBarTextSize();
-
-                              return (
-                                <div
-                                  key={`${entry.projectId}-${entryIndex}`}
-                                  className={`absolute inset-y-1 rounded border ${colorClasses} overflow-hidden`}
-                                  style={position}
-                                  title={`${entry.projectName}\nStart: ${startFmt}\nEnd: ${endFmt}`}
-                                >
-                                  {/* One line: start | name | end */}
-                                  <div className={`h-full w-full grid grid-cols-3 items-center px-2 ${barTextSize}`}>
-                                    <span className="justify-self-start whitespace-nowrap">
-                                      {startFmt}
-                                    </span>
-                                    <span className="justify-self-center whitespace-nowrap overflow-hidden text-ellipsis font-medium">
-                                      {entry.projectName}
-                                    </span>
-                                    <span className="justify-self-end whitespace-nowrap">
-                                      {endFmt}
-                                    </span>
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-            </div>
-
+            ))}
           </div>
         </div>
-
-        {/* Optional horizontal nudge buttons */}
-        <div className="pointer-events-none absolute bottom-2 right-2 flex gap-1">
-          <button
-            onClick={() => nudge(-300)}
-            className="pointer-events-auto px-2 py-1 text-xs rounded border bg-white shadow"
-            title="Scroll left"
-          >
-            ←
-          </button>
-          <button
-            onClick={() => nudge(300)}
-            className="pointer-events-auto px-2 py-1 text-xs rounded border bg-white shadow"
-            title="Scroll right"
-          >
-            →
-          </button>
-        </div>
       </div>
+
+      {/* BODY: same grid as header, scrolls in both axes */}
+      {filteredPeople.map((person: Person, index: number) => {
+        const personEntries = mockTimelineEntries.filter(
+          (entry: TimelineEntry) => entry.personId === person.id
+        );
+        return (
+          <div key={person.id} className="relative flex">
+            {/* LEFT people cell: sticky left only (scrolls vertically with content) */}
+            <div
+              className={`w-[150px] flex-none px-2 border-r border-border sticky left-0 z-30
+                          ${index % 2 === 0 ? "bg-white" : "bg-gray-50"}`}
+              title={`${person.name} — ${person.role}`}
+            >
+              <div className={`flex items-center ${rowHeightClass}`}>
+                <Avatar className={`${getAvatarSize()} flex-shrink-0`}>
+                  <AvatarImage src={person.avatar} alt={person.name} />
+                  <AvatarFallback className="text-xs">
+                    {person.name.split(" ").map((n) => n[0]).join("")}
+                  </AvatarFallback>
+                </Avatar>
+                <div className={`flex-1 min-w-0 ${isTight ? "ml-1" : "ml-2"}`}>
+                  <p className={`font-medium ${getTextSize()} truncate`}>{person.name}</p>
+                  {!isCompact && (
+                    <p className={`${getTextSize()} text-muted-foreground truncate`}>
+                      {person.role}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* RIGHT rails: normal flow; red line and bars live here */}
+            <div
+              className={`relative flex-1 border-b border-border ${index % 2 === 0 ? "bg-white" : "bg-gray-50"}`}
+              style={{ height: `var(--row-h, 100%)` }}
+            >
+              {/* Red focus line */}
+              <div
+                className="absolute top-0 bottom-0 w-0.5 bg-red-600/80 pointer-events-none z-10"
+                style={{ left: `${focusOffset}%` }}
+              />
+              {/* Bars */}
+              <div className="absolute inset-0">
+                {personEntries.map((entry: TimelineEntry, entryIndex: number) => {
+                  const position = calculateBarPosition(entry.startWeek, entry.endWeek);
+                  const colorClasses = getProjectColor(entry.projectName, person.department);
+                  const startFmt = fmtBarDate(entry.startWeek);
+                  const endFmt = fmtBarDate(entry.endWeek);
+                  const barTextSize = getBarTextSize();
+
+                  return (
+                    <div
+                      key={`${entry.projectId}-${entryIndex}`}
+                      className={`absolute inset-y-1 rounded border ${colorClasses} overflow-hidden`}
+                      style={position}
+                      title={`${entry.projectName}\nStart: ${startFmt}\nEnd: ${endFmt}`}
+                    >
+                      <div className={`h-full w-full grid grid-cols-3 items-center px-2 ${barTextSize}`}>
+                        <span className="justify-self-start whitespace-nowrap">{startFmt}</span>
+                        <span className="justify-self-center whitespace-nowrap overflow-hidden text-ellipsis font-medium">
+                          {entry.projectName}
+                        </span>
+                        <span className="justify-self-end whitespace-nowrap">{endFmt}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Keep row height consistent */}
+              <div className={rowHeightClass} />
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  </div>
+</div>
 
       {/* Legend */}
       <div className="mt-4 p-3 bg-gray-50 rounded-lg">
